@@ -65,7 +65,7 @@ mov byte [gs:0x09], 0xA4
 
 mov eax, LOADER_START_SECTOR    ; 起始扇区lab地址  2 第0个扇区是mbr 第一个扇区未使用
 mov bx, LOADER_BASE_ADDR        ; 写入地址
-mov cx, 1                       ; 待读入的扇区数
+mov cx, 4                       ; 读取4个扇区
 call rd_disk_m_16               ; 以下读取程序的起始部分
 
 jmp LOADER_BASE_ADDR
@@ -135,6 +135,6 @@ rd_disk_m_16:
 ;;;; 打印字符串结束;;;; 
 ;jmp $       ;使程序停在此处 $表示当前位置的地址 $$：当前段的起始地址
 
-;; message db "1 MBR"
-times 510-($-$$) db 0   ; 当前位置离段起始位置的偏移，然后填充0到510字节
-db 0x55,0xaa            ; 添加两个字节，0x55 0xaa
+    ;; message db "1 MBR"
+    times 510-($-$$) db 0   ; 当前位置离段起始位置的偏移，然后填充0到510字节
+    db 0x55,0xaa            ; 添加两个字节，0x55 0xaa
