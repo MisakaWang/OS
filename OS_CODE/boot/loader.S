@@ -38,6 +38,7 @@ gdt_ptr dw GDT_LIMIT
 loadermsg db '2 loader in real.'
 
 loader_start:
+        xchg bx, bx
         ; 调用10h中断显示字符串
         mov sp, LOADER_BASE_ADDR ; 设置栈顶
         mov bp, loadermsg ; 通过bp作为基址来访问字符串

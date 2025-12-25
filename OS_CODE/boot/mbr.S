@@ -1,7 +1,7 @@
 ; 主引导程序
 ;------------------------------
 %include "boot.inc"
-SECTION MBR vstart=0x7c00 ;告诉编译器起始地址编译为0x7c00
+SECTION MBR vstart=0x7c00 ;告诉编译器起始地址编译为0x7c00, BIOS 将代码加载到0x7c00
     mov ax, cs  ; 将CS（代码段寄存器）的值复制到AX寄存器
     mov ds, ax  ; 设置数据段寄存器DS = CS
     mov es, ax  ; 设置附加段寄存器ES = CS
@@ -67,8 +67,8 @@ mov eax, LOADER_START_SECTOR    ; 起始扇区lab地址  2 第0个扇区是mbr �
 mov bx, LOADER_BASE_ADDR        ; 写入地址
 mov cx, 4                       ; 读取4个扇区
 call rd_disk_m_16               ; 以下读取程序的起始部分
-
-jmp LOADER_BASE_ADDR
+xchg bx, bx
+jmp 0x0000:LOADER_BASE_ADDR
 ;---------------------------------------------------------------------------------
 ; 功能 读取硬盘的n个扇区
 rd_disk_m_16: 
