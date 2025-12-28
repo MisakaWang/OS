@@ -12,4 +12,4 @@ dd if=OS_CODE/boot/mbr.bin of=hd64M.img bs=512 count=1 conv=notrunc
 # count=4 是为了确保即使 Loader 变大也能完整写入
 dd if=OS_CODE/boot/loader.bin of=hd64M.img bs=512 count=2 seek=2 conv=notrunc
 
-bochs -f bochsrc -q
+bochs -f bochsrc.disk -q

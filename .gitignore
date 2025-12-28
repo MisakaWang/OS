@@ -1,0 +1,3 @@
+OS_CODE/boot/loader.bin
+OS_CODE/boot/mbr.bin
+hd64M.img

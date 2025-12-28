@@ -1,0 +1,32 @@
+# Bochs 配置文件
+
+# 运行中使用的内存
+
+megs: 32
+
+# 设置对应真是机器的BIOS 和 VGA 设置对应真是机器的BIOS
+
+romimage: file=/home/wang/Downloads/bochs-3.0/share/bochs/BIOS-bochs-latest
+
+vgaromimage: file=/home/wang/Downloads/bochs-3.0/share/bochs/VGABIOS-lgpl-latest.bin
+
+# 设置BOCHS所需要的磁盘 软盘关键字为floppy
+# floppya: 1_44=/home/wang/Downloads/bochs-3.0/share/bochs/floppy/floppy.img, status=inserted
+
+# 第四步 选择启动盘符
+boot: disk # 修改为硬盘启动
+
+# 第五步 设置日志文件的输出
+log: bochs.out
+
+# 第六步 开启或关闭某些功能
+# 关闭鼠标 打开键盘
+mouse: enabled=0
+keyboard: keymap=/home/wang/Downloads/bochs-3.0/share/bochs/keymaps/x11-pc-us.map
+
+# 硬盘设置
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata0-master: type=disk, path=hd64M.img, mode=flat, cylinders=121, heads=16, spt=63
+
+# 新增对gdb的支持
+# gdbstub: enabled=1, port=1234, text_base=0, data_base=0, bss_base=0
