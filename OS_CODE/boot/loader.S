@@ -32,34 +32,74 @@ SELECTOR_CODE equ (0x0001 << 3) + TI_GDT + RPL0
 SELECTOR_DATA equ (0x0002 << 3) + TI_GDT + RPL0
 SELECTOR_VIDEO equ (0x0003 << 3) + TI_GDT + RPL0
 
+; 内存大小，字节单位，此处的内存地址是0xb00
+total_memory_bytes dd 0
+
 gdt_ptr dw GDT_LIMIT
         dd GDT_BASE
 
-loadermsg db '2 loader in real.'
+; loadermsg db '2 loader in real.'
+
+ards_buf times 244 db 0
+
+ards_nr dw 0
 
 loader_start:
-        xchg bx, bx
-        ; 调用10h中断显示字符串
-        mov sp, LOADER_BASE_ADDR ; 设置栈顶
-        mov bp, loadermsg ; 通过bp作为基址来访问字符串
-        ; 设置字符串的长度
-        mov cx, 17
-        ; 子功能号，以及显示的方式
-        mov ax, 0x1301  ; ah = 0x13 表示 0x10 中断的13号子功能，用于显示字符串 al=0x01 子功能的选项 光标跟随字符串移动到末尾的位置
-        ; 页号0，蓝底白字
-        mov bx, 0x001f ; 0x00 页号 bl=0x1f 属性字节 0001 1111 0-3位前景色 4-6位背景色 7位 闪烁
-        mov dx, 0x1800
-        int 0x10
+        xor ebx, ebx; 清零 
+        mov edx, 0x534d4150 ;  ASCII 字符 "SMAP" 的十六进制表示。
+        mov di, ards_buf  
 
-        ; 打开A20地址线，可以访问超过1M大小的地址
-        in al, 0x92      ; 从键盘控制器端口0x92读取当前状态
-        or al, 00000010B ; 这是A20使能位，设置该位即可启用A20地址线
+.e820_mem_get_loop:
+        mov eax, 0x0000e820
+        mov ecx, 20 ; 期望接收的数据结构的大小 指定 ARDS (Address Range Descriptor Structure) 结构体的大小
+        int 0x15
+
+        jc .e820_mem_get_failed ; 如果int 0x15失败，跳转到.e820_mem_get_failed
+
+        add di, cx ; 指向下一个 ARDS 结构体
+        inc word [ards_nr] ; ARDS 结构体数量加一
+        cmp ebx, 0 ; 检查 ebx 是否为 0 int0x15的时候 会更新ebx的值
+        jne .e820_mem_get_loop ; 如果 ebx 不为 0，继续循环
+
+        mov cx, [ards_nr]
+        mov ebx, ards_buf ; ; 这里是为了给下一段代码（找出最大内存）做准备
+        xor edx, edx
+
+.find_max_mem_area:
+        ; edx 用来记录当前最大的内存的结束地址 其实就是内存的最大地址
+        mov eax, [ebx] ; ARDS 结构体的头 4 个字节（即 BaseAddrLow）存入了 eax
+        add eax, [ebx + 8] ; 起始地址 + 长度 = 当前内存块的结束地址
+        add ebx, 20     ; 目前记录的最大内存地址” (edx) 与 “当前算出来的结束地址” (eax) 进行比较
+        cmp edx, eax
+        jge .next_ards
+        mov edx, eax    ; 如果 “当前算出来的结束地址” 大于 “目前记录的最大内存地址”，则更新最大内存地址;
+
+.next_ards:
+        loop .find_max_mem_area
+        jmp .mem_get_ok
+
+.e820_mem_get_failed:
+        mov byte [gs:0], 'f'
+        mov byte [gs:2], 'a'
+        mov byte [gs:4], 'i'
+        mov byte [gs:6], 'l'
+        mov byte [gs:8], 'e'
+        mov byte [gs:10], 'd'
+        ; 内存检测失败，不再继续向下执行
+        jmp $
+
+.mem_get_ok:
+        mov [total_memory_bytes], edx
+        ; 开始进入保护模式
+        ; 打开A20地址线
+        in al, 0x92   ; 从0x92端口读取一个字节 System Control Port A 包含 A20 Gate Enable System Reset
+        or al, 00000010B
         out 0x92, al
 
-        ; 设置gdt
+        ; 加载gdt
         lgdt [gdt_ptr]
 
-        ; CR0 第0个位置设置为1，开启保护模式
+        ; cr0第0位置1
         mov eax, cr0
         or eax, 0x00000001
         mov cr0, eax
@@ -71,40 +111,71 @@ loader_start:
 p_mode_start:
         mov ax, SELECTOR_DATA           ; 将数据段选择器加载到ax寄存器
         mov ds, ax
+
         mov es, ax
         mov ss, ax                      ; 栈段（ss）和栈指针（esp）
+
         mov esp, LOADER_STACK_TOP       ; 设置栈指针esp为LOADER_STACK_TOP（栈顶地址）
         mov ax, SELECTOR_VIDEO
         mov gs, ax                      ; gs寄存器指向视频段，用于访问显存
+
+        
 
         mov byte [gs:160], 'P'          ; 在视频内存偏移160的位置写入字符'P'
         mov byte [gs:161], 0x1f
         jmp $
 
-; ; 输出绿色背景 前景红色 并且跳动的字符串 "1 MBR"
+;----------------- 页表--------------------
+setup_page:
+        ; 页表目录占用4KB
+        mov ecx, 4096   ; 清理计数：4096字节
+        mov esi, 0      ; 清理起始地址, 源索引寄存器
+.clear_page_dir:
+        mov byte [PAGE_DIR_TABLE_POS + esi], 0
+        inc esi
+        loop .clear_page_dir ; 会将 ecx 寄存器的值 自动减1
 
-; mov byte [gs:0x00], '2'
-; mov byte [gs:0x01], 0xA4 ; A表示绿色背景闪烁, 4表示前景色为红色
+; 创建页目录项 （用于索引页表，每个页目录项记录页表的物理地址 20位大小 因为页大小为4KB，低12位一定是0 所以忽略， 和页的属性）
+.create_pde:
+        mov eax, PAGE_DIR_TABLE_POS
+        add eax, 0x1000 ; 指向index=1 的页目录项
+        mov ebx, eax ; 用来保存页目录表的地址
 
-; mov byte [gs:0x02], ' '
-; mov byte [gs:0x03], 0xA4 
+        or eax, PG_P | PG_US_U | PG_RW_W ; 设置属性 物理内存中存在 user 写
+        mov [PAGE_DIR_TABLE_POS + 0x000], eax
+        ; 按需分配 当前只在内核空间分配一个pde 768
+        mov [PAGE_DIR_TABLE_POS + 0xc00], eax ; 0xc00 * 4M = 3GB  这个pde管理3GB开始的内存区域， 也就是内核空间
+        sub eax, 0x1000
+        mov [PAGE_DIR_TABLE_POS + 4096], eax ; 最后一个指向自己
 
-; mov byte [gs:0x04], 'L'
-; mov byte [gs:0x05], 0xA4 
+; 创建pte 页表项
+        mov ecx, 256 ; 4k
+        mov esi, 0
+        mov edx, PG_P | PG_US_U | PG_RW_W
+.create_pte:
+        mov [ebx + esi * 4], edx ; 一个pte的大小是4字节
+        add edx, 4096 ; 因为内一个页表项 管理的内存的大小是4KB， 所以下一个管理的内存物理地址是上一个+4KB
+        inc esi
+        loop .create_pte
 
-; mov byte [gs:0x06], 'O'
-; mov byte [gs:0x07], 0xA4 
+;创建内核其他的页目录项 之前只创建了3G开始的第一个
+        mov eax, PAGE_DIR_TABLE_POS
+        add eax, 0x2000 ; 8kB 也就是第三个页目录表起始地址
+        or eax, PG_P | PG_US_U | PG_RW_W ; 设置属性 物理内存中存在 user 写
+        mov ebx, PAGE_DIR_TABLE_POS
+        mov ecx, 254 ; 设置循环计数器为254,1G = 256个页
+        mov esi, 769 ; 内核内存第二个页
+.create_kernel_pde:
+        mov [ebx + esi * 4], eax
+        inc esi
+        add eax, 0x1000
+        loop .create_kernel_pde
+        ret
 
-; mov byte [gs:0x08], 'A'
-; mov byte [gs:0x09], 0xA4 
 
-; mov byte [gs:0x0a], 'D'
-; mov byte [gs:0x0b], 0xA4 
 
-; mov byte [gs:0x0c], 'E'
-; mov byte [gs:0x0d], 0xA4 
 
-; mov byte [gs:0x0e], 'R'
-; mov byte [gs:0x0f], 0xA4 
 
-; jmp $
+
+
+

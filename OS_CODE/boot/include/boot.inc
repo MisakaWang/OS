@@ -1,6 +1,7 @@
 ;-----------------loader和kernel--------------------------
 LOADER_BASE_ADDR equ 0x900
 LOADER_START_SECTOR equ 0x2
+PAGE_DIR_TABLE_POS  0x100000 ; 页目录表的物理地址
 
 ;------------ 全局描述符表属性结构 ------------------
 DESC_G_4K  equ 100000000000000000000000b ; 段描述符高23位，表示段界限的粒度为4KB
@@ -52,5 +53,13 @@ RPL0 equ 00b
 RPL1 equ 01b
 RPL2 equ 10b
 RPL3 equ 11b
-TI_GDT equ 000b
+TI_GDT equ 000b 
 TI_LDT equ 100b
+
+; --------------页相关的属性----------------
+
+PG_P equ 1b
+PG_RW_R equ 00b
+PG_RW_W equ 10b
+PG_US_S equ 000b ; 最右边的两个是占位，只有最左边的才表示U/S
+PG_US_U equ 100b
