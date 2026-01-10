@@ -45,6 +45,8 @@ ards_buf times 244 db 0
 ards_nr dw 0
 
 loader_start:
+        cli ; 在进入保护模式前必须关闭中断，否则若无IDT会导致Triple Fault
+        ; === 早期调试输出 - 在实模式下立即显示 '2' ===
         xor ebx, ebx; 清零 
         mov edx, 0x534d4150 ;  ASCII 字符 "SMAP" 的十六进制表示。
         mov di, ards_buf  
@@ -120,9 +122,34 @@ p_mode_start:
         mov gs, ax                      ; gs寄存器指向视频段，用于访问显存
 
         
+        ; 创建页目录及页表 并根据需要创建里面的内容
+        call setup_page
 
-        mov byte [gs:160], 'V'          ; 在视频内存偏移160的位置写入字符'P'
+        ; 保存gdt表
+        sgdt [gdt_ptr]
+
+        ; 重新设置gdt描述符， 使虚拟地址指向内核的第一个页表
+        mov ebx, [gdt_ptr + 2]
+        or dword [ebx + 0x18 + 4], 0xc0000000 ; 3GB, 视频段是第三个段描述符 每个8字节 24=0x18, 取高4位（段基址）
+        add dword [gdt_ptr + 2], 0xc0000000
+
+        add esp, 0xc0000000 ; 将栈指针同样映射到内核地址
+
+        ; 页目录的地址赋值给cr3
+        mov eax, PAGE_DIR_TABLE_POS
+        mov cr3, eax
+
+        ; 打开cr0 的pg位
+        mov eax, cr0
+        or eax, 0x80000000
+        mov cr0, eax
+
+        ; 开启分页后 用gdt 新的地址重新加载
+        lgdt [gdt_ptr]
+
+        mov byte [gs:160], 'V'          ; 在视频内存偏移160的位置写入字符'V'
         mov byte [gs:161], 0x1f
+        
         jmp $
 
 ;----------------- 页表--------------------
@@ -146,7 +173,7 @@ setup_page:
         ; 按需分配 当前只在内核空间分配一个pde 768
         mov [PAGE_DIR_TABLE_POS + 0xc00], eax ; 0xc00 * 4M = 3GB  这个pde管理3GB开始的内存区域， 也就是内核空间
         sub eax, 0x1000
-        mov [PAGE_DIR_TABLE_POS + 4096], eax ; 最后一个指向自己
+        mov [PAGE_DIR_TABLE_POS + 4092], eax ; 最后一个指向页目录表本身
 
 ; 创建pte 页表项
         mov ecx, 256 ; 4k
