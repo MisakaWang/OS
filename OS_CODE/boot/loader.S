@@ -165,7 +165,7 @@ setup_page:
 ; 创建页目录项 （用于索引页表，每个页目录项记录页表的物理地址 20位大小 因为页大小为4KB，低12位一定是0 所以忽略， 和页的属性）
 .create_pde:
         mov eax, PAGE_DIR_TABLE_POS
-        add eax, 0x1000 ; 指向index=1 的页目录项
+        add eax, 0x1000 ; 第一个页表的物理地址
         mov ebx, eax ; 用来保存页目录表的地址
 
         or eax, PG_P | PG_US_U | PG_RW_W ; 设置属性 物理内存中存在 user 写
@@ -175,12 +175,12 @@ setup_page:
         sub eax, 0x1000
         mov [PAGE_DIR_TABLE_POS + 4092], eax ; 最后一个指向页目录表本身
 
-; 创建pte 页表项
+; 创建pte 页表项 256 * 4K = 1M 初始化了前256个页表项 
         mov ecx, 256 ; 4k
         mov esi, 0
         mov edx, PG_P | PG_US_U | PG_RW_W
 .create_pte:
-        mov [ebx + esi * 4], edx ; 一个pte的大小是4字节
+        mov [ebx + esi * 4], edx ; 初始化每一个pde 一个pte的大小是4字节 递增
         add edx, 4096 ; 因为内一个页表项 管理的内存的大小是4KB， 所以下一个管理的内存物理地址是上一个+4KB
         inc esi
         loop .create_pte
