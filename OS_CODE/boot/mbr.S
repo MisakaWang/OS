@@ -67,7 +67,7 @@ mov eax, LOADER_START_SECTOR    ; 起始扇区lab地址  2 第0个扇区是mbr �
 mov bx, LOADER_BASE_ADDR        ; 写入地址
 mov cx, 4                       ; 读取4个扇区
 call rd_disk_m_16               ; 以下读取程序的起始部分
-xchg bx, bx
+; xchg bx, bx
 jmp 0x0000:LOADER_BASE_ADDR
 ;---------------------------------------------------------------------------------
 ; 功能 读取硬盘的n个扇区

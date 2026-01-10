@@ -30,3 +30,4 @@ ata0-master: type=disk, path=/home/wang/CODE/OS/hd64M.img, mode=flat, cylinders=
 
 # 新增对gdb的支持
 # gdbstub: enabled=1, port=1234, text_base=0, data_base=0, bss_base=0
+magic_break: enabled=0

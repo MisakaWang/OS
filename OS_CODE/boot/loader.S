@@ -121,7 +121,7 @@ p_mode_start:
 
         
 
-        mov byte [gs:160], 'P'          ; 在视频内存偏移160的位置写入字符'P'
+        mov byte [gs:160], 'V'          ; 在视频内存偏移160的位置写入字符'P'
         mov byte [gs:161], 0x1f
         jmp $
 
