@@ -39,3 +39,7 @@ dd if=loader.bin of=disk.img bs=512 count=4 seek=2 conv=notrunc
 echo "Now start bochs and have fun!"
 bochs -f bochsrc 
 ```
+
+```
+ld main.o -Ttext 0xc0001500 -e main -o kernel.bin
+```
