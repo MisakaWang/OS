@@ -2,13 +2,18 @@
 
 # 运行中使用的内存
 
+config_interface: textconfig
+display_library: x
+
 megs: 32
+
+cpu: model=p2_klamath
 
 # 设置对应真是机器的BIOS 和 VGA 设置对应真是机器的BIOS
 
-romimage: file=/home/wang/Downloads/bochs-3.0/share/bochs/BIOS-bochs-latest
+romimage: file=/usr/share/bochs/BIOS-bochs-legacy
 
-vgaromimage: file=/home/wang/Downloads/bochs-3.0/share/bochs/VGABIOS-lgpl-latest.bin
+vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest
 
 # 设置BOCHS所需要的磁盘 软盘关键字为floppy
 # floppya: 1_44=/home/wang/Downloads/bochs-3.0/share/bochs/floppy/floppy.img, status=inserted
@@ -22,11 +27,13 @@ log: bochs.out
 # 第六步 开启或关闭某些功能
 # 关闭鼠标 打开键盘
 mouse: enabled=0
-keyboard: keymap=/home/wang/Downloads/bochs-3.0/share/bochs/keymaps/x11-pc-us.map
+keyboard: type=mf
+sound: waveoutdrv=dummy, waveout=none, waveindrv=dummy, wavein=none, midioutdrv=dummy, midiout=none
+speaker: enabled=false
 
 # 硬盘设置
 ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
-ata0-master: type=disk, path=/home/wang/CODE/OS/hd64M.img, mode=flat, cylinders=121, heads=16, spt=63
+ata0-master: type=disk, path=/home/wang/OS/OS/hd64M.img, mode=flat, cylinders=130, heads=16, spt=63
 
 # 新增对gdb的支持
 # gdbstub: enabled=1, port=1234, text_base=0, data_base=0, bss_base=0

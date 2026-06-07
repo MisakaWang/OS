@@ -40,26 +40,34 @@ gdt_ptr dw GDT_LIMIT
 
 ; loadermsg db '2 loader in real.'
 
-ards_buf times 244 db 0
+ARDS_MAX_NR equ 24
+ards_buf times ARDS_MAX_NR * 20 db 0
 
 ards_nr dw 0
 
 loader_start:
+        mov ax, 0xb800
+        mov gs, ax
+        mov byte [gs:12], 'L'
+        mov byte [gs:13], 0x1f
         cli ; 在进入保护模式前必须关闭中断，否则若无IDT会导致Triple Fault
         ; === 早期调试输出 - 在实模式下立即显示 '2' ===
         xor ebx, ebx; 清零 
-        mov edx, 0x534d4150 ;  ASCII 字符 "SMAP" 的十六进制表示。
         mov di, ards_buf  
 
 .e820_mem_get_loop:
         mov eax, 0x0000e820
+        mov edx, 0x534d4150 ; BIOS may clobber EDX, reload SMAP each iteration
         mov ecx, 20 ; 期望接收的数据结构的大小 指定 ARDS (Address Range Descriptor Structure) 结构体的大小
         int 0x15
 
         jc .e820_mem_get_failed ; 如果int 0x15失败，跳转到.e820_mem_get_failed
 
-        add di, cx ; 指向下一个 ARDS 结构体
+        cmp word [ards_nr], ARDS_MAX_NR
+        jae .e820_next
+        add di, 20 ; 我们只按20字节结构体使用缓冲区
         inc word [ards_nr] ; ARDS 结构体数量加一
+.e820_next:
         cmp ebx, 0 ; 检查 ebx 是否为 0 int0x15的时候 会更新ebx的值
         jne .e820_mem_get_loop ; 如果 ebx 不为 0，继续循环
 
@@ -120,6 +128,9 @@ p_mode_start:
         mov esp, LOADER_STACK_TOP       ; 设置栈指针esp为LOADER_STACK_TOP（栈顶地址）
         mov ax, SELECTOR_VIDEO
         mov gs, ax                      ; gs寄存器指向视频段，用于访问显存
+        mov byte [gs:164], 'P'
+        mov byte [gs:165], 0x1f
+        jmp $
 
         
         ; 创建页目录及页表 并根据需要创建里面的内容
@@ -198,10 +209,6 @@ setup_page:
         add eax, 0x1000
         loop .create_kernel_pde
         ret
-
-
-
-
 
 
 
